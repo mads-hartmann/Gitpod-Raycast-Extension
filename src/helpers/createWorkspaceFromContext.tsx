@@ -22,6 +22,9 @@ export default async function createWorksapceFromContext(defaultOrg: string, con
     title: "Starting your workspace",
     style: Toast.Style.Animated,
   });
+  // TODO:
+  // 1. Create a new command "gitpod_workspace"
+  // 2. Redirect to that here instead (fetch the workspace ID from the request above)
   setTimeout(async () => {
     launchCommand({
       name: "gitpod_dashboard",

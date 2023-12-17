@@ -15,14 +15,17 @@ import {
 import { usePromise } from "@raycast/utils";
 
 import { branchStatus, GitpodIcons, UIColors } from "../../constants";
+import { PublicAPI } from "../api/Gitpod/PublicAPI";
 import { WorkspaceManager } from "../api/Gitpod/WorkspaceManager";
 import { BranchDetailsFragment } from "../generated/graphql";
 import createWorksapceFromContext from "../helpers/createWorkspaceFromContext";
 import OpenInGitpod, { getPreferencesForContext } from "../helpers/openInGitpod";
 import ContextPreferences from "../preferences/context_preferences";
 import { dashboardPreferences } from "../preferences/dashboard_preferences";
+import { Preferences as EditorPreferences } from "../preferences/repository_preferences";
 
 import DefaultOrgForm from "./DefaultOrgForm";
+import WorkspaceInfo from "./WorkspaceInfo";
 
 type BranchItemProps = {
   branch: BranchDetailsFragment;
@@ -59,6 +62,7 @@ export default function BranchListItem({
     return response;
   });
 
+  const editorPreferences = getPreferenceValues<EditorPreferences>();
   const dashboardPreferences = getPreferenceValues<dashboardPreferences>();
   const { push } = useNavigation();
 
@@ -161,7 +165,30 @@ export default function BranchListItem({
               if (dashboardPreferences.access_token) {
                 const defaultOrg = await LocalStorage.getItem("default_organization");
                 if (defaultOrg !== undefined && WorkspaceManager.api) {
-                  createWorksapceFromContext(defaultOrg.toString(), branchURL);
+                  const api = new PublicAPI({token: dashboardPreferences.access_token});
+                  console.log(api, api.createAndStartWorkspace)
+                  await showToast({
+                    title: "Starting your workspace",
+                    style: Toast.Style.Animated,
+                  });
+                  const workspaceID = await api.createAndStartWorkspace({
+                    contextUrl: branchURL,
+                    organizationId: defaultOrg.toString(),
+                    startSpec: {
+                      ignoreRunningPrebuild: true,
+                      ignoreRunningWorkspaceOnSameCommit: true,
+                      workspaceClass: editorPreferences.preferredEditorClass,
+                      ideSettings: {
+                        defaultIde: editorPreferences.preferredEditor === "ssh" ? "code" : editorPreferences.preferredEditor,
+                        useLatestVersion: false,
+                      },
+                    }
+                  });
+                  await showToast({
+                    title: `Created ${workspaceID}`,
+                    style: Toast.Style.Success,
+                  });
+                  push(<WorkspaceInfo workspaceId={workspaceID} />)
                 } else {
                   push(<DefaultOrgForm />);
                 }
